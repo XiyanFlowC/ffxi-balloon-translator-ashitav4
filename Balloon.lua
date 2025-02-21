@@ -446,7 +446,7 @@ balloon.process_balloon = function(message, mode)
     -- MODIFY: Process processed data after the process done in the callback
     -- Preprocess: Line feed replacement
     message = message:gsub(string.char(0x07), '\n')
-    translator.translate(message, function (data, err)
+    translator.translate(message:trimex(), function (data, err)
         if data == nil then
             print(chat.header(addon.name):append(chat.error(encoding:UTF8_To_ShiftJIS(err))))
         else
