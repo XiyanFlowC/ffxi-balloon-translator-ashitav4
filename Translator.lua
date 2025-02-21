@@ -256,6 +256,7 @@ local function postproc(message, mappings)
 end
 
 local function google_trans (message, callback)
+    local original_message = message
     message = message:gsub('\n', '')
     message, mappings = preproc(message, term.pick_terms(message))
     
@@ -277,6 +278,7 @@ local function google_trans (message, callback)
                     end
                 end
                 translated_message = postproc(translated_message:gsub('＃', '#'), mappings)
+                term.insert_cache(original_message, translated_message)
                 callback(translated_message)
             else
                 callback(nil, "Error: " .. response.status_line)
@@ -293,6 +295,7 @@ local function youdao_trans (message, callback)
         return
     end
 
+    local original_message = message
     message = message:gsub('\n', '')
     message, mappings = preproc(message, term.pick_terms(message))
 
@@ -345,6 +348,7 @@ local function youdao_trans (message, callback)
             end
             
             translated_message = postproc(table.concat(contents, '\n'), mappings)
+            term.insert_cache(original_message, translated_message)
             callback(translated_message)
         else
             callback(nil, "Error: " .. response.status_line)
