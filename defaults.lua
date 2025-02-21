@@ -19,6 +19,33 @@ defaults.additional_chat_modes = {
     144
 }
 
+defaults.trans = {
+    config = 'sakura',
+    enable = false,
+    config_groups = {
+        sakura = {
+            base_url = 'http://127.0.0.1:8080',
+            endpoint = '/v1/chat/completions',
+            api_key = '',
+            req_para = {
+                model = 'SakuraLLM',
+                temperature = 0.1,
+                top_p = 0.3,
+                max_tokens = 512,
+                frequency_penalty = 0.1
+            }
+        },
+        deepseek = {
+            base_url = 'https://api.deepseek.com',
+            endpoint = '/v1/chat/completions',
+            api_key = 'YOUR_API_KEY',
+            req_para = {
+                model = 'deepseek-chat'
+            }
+        }
+    }
+}
+
 local scaling = require('scaling')
 defaults.position = {}
 defaults.position.x = scaling.window.w / 2

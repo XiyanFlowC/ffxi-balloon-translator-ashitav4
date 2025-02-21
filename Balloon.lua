@@ -1,5 +1,5 @@
 addon.name      = 'balloon'
-addon.author    = 'Originally by Hando, English support added by Yuki & Kenshi, themes added by Ghosty, ported to Ashita v4 by onimitch.'
+addon.author    = 'Originally by Hando, English support added by Yuki & Kenshi, themes added by Ghosty, ported to Ashita v4 by onimitch, translation featured by Hyururu.'
 addon.version   = '4.3.1'
 addon.desc      = 'Displays NPC chat logs in a UI Balloon, similar to FFXIV.'
 addon.link      = 'https://github.com/onimitch/ffxi-balloon-ashitav4'
@@ -23,6 +23,8 @@ local tests = require('tests')
 local defines = require('defines')
 local helpers = require('helpers')
 
+-- TRANSLATOR: include
+local translator = require('Translator')
 
 local chat_modes = defines.chat_modes
 local chat_color_codes = defines.chat_color_codes
@@ -440,39 +442,51 @@ balloon.process_balloon = function(message, mode)
     message = message:gsub(chat_color_codes.orange, '[BL_c8]') --color code 8 (orange/RoE objectives?)
     message = message:gsub(chat_color_codes.emote, '') --cutscene emote color code (handled by the message type instead)
 
-    message = message:gsub('^?([%w%.\'(<“])', '%1')
-    message = message:gsub('%f[-]%-%-%f[^-]', '—') --replace -- with em dashes
-
-    message = message:gsub('%[BL_c1]', '\\cr')
-    message = message:gsub('%[BL_c2]', '\\cs('..ui._type.items..')')
-    message = message:gsub('%[BL_c3]', '\\cs('..ui._type.keyitems..')')
-    message = message:gsub('%[BL_c4]', '\\cs('..ui._type.keyitems..')')
-    message = message:gsub('%[BL_c5]', '\\cs('..ui._type.gear..')')
-    message = message:gsub('%[BL_c6]', '\\cs(0,159,173)')
-    message = message:gsub('%[BL_c7]', '\\cs(156,149,19)')
-    message = message:gsub('%[BL_c8]', '\\cs('..ui._type.roe..')')
-    --TODO: theme settings for these element colors
-    message = message:gsub('%[BL_Fire]', '\\cs(255,0,0)Fire \\cr')
-    message = message:gsub('%[BL_Ice]', '\\cs(0,255,255)Ice \\cr')
-    message = message:gsub('%[BL_Wind]', '\\cs(0,255,0)Wind \\cr')
-    message = message:gsub('%[BL_Earth]', '\\cs(153,76,0)Earth \\cr')
-    message = message:gsub('%[BL_Lightning]', '\\cs(127,0,255)Lightning \\cr')
-    message = message:gsub('%[BL_Water]', '\\cs(0,76,153)Water \\cr')
-    message = message:gsub('%[BL_Light]', '\\cs(224,224,224)Light \\cr')
-    message = message:gsub('%[BL_Dark]', '\\cs(82,82,82)Dark \\cr')
-    -- Mid message line breaks
+    -- TRANSLATOR: translate
+    -- MODIFY: Process processed data after the process done in the callback
+    -- Preprocess: Line feed replacement
     message = message:gsub(string.char(0x07), '\n')
+    translator.translate(message, function (data, err)
+        if data == nil then
+            print(chat.header(addon.name):append(chat.error(encoding:UTF8_To_ShiftJIS(err))))
+        else
+            message = data
+        end
+        -- 交由原本逻辑处理控制符，并创建窗口显示
+
+        message = message:gsub('^?([%w%.\'(<“])', '%1')
+        message = message:gsub('%f[-]%-%-%f[^-]', '—') --replace -- with em dashes
+
+        message = message:gsub('%[BL_c1]', '\\cr')
+        message = message:gsub('%[BL_c2]', '\\cs('..ui._type.items..')')
+        message = message:gsub('%[BL_c3]', '\\cs('..ui._type.keyitems..')')
+        message = message:gsub('%[BL_c4]', '\\cs('..ui._type.keyitems..')')
+        message = message:gsub('%[BL_c5]', '\\cs('..ui._type.gear..')')
+        message = message:gsub('%[BL_c6]', '\\cs(0,159,173)')
+        message = message:gsub('%[BL_c7]', '\\cs(156,149,19)')
+        message = message:gsub('%[BL_c8]', '\\cs('..ui._type.roe..')')
+        --TODO: theme settings for these element colors
+        message = message:gsub('%[BL_Fire]', '\\cs(255,0,0)火 \\cr')
+        message = message:gsub('%[BL_Ice]', '\\cs(0,255,255)冰 \\cr')
+        message = message:gsub('%[BL_Wind]', '\\cs(0,255,0)风 \\cr')
+        message = message:gsub('%[BL_Earth]', '\\cs(153,76,0)土 \\cr')
+        message = message:gsub('%[BL_Lightning]', '\\cs(127,0,255)雷 \\cr')
+        message = message:gsub('%[BL_Water]', '\\cs(0,76,153)水 \\cr')
+        message = message:gsub('%[BL_Light]', '\\cs(224,224,224)光 \\cr')
+        message = message:gsub('%[BL_Dark]', '\\cs(82,82,82)暗 \\cr')
 
 
-    if S{'message', 'all'}[balloon.debug] then LogManager:Log(5, 'Balloon', 'codes end: ' .. parse_codes(message:sub(-4))) end
-	if S{'message', 'all'}[balloon.debug] then LogManager:Log(5, 'Balloon', 'Final: ' .. encoding:UTF8_To_ShiftJIS(message)) end
+        if S{'message', 'all'}[balloon.debug] then LogManager:Log(5, 'Balloon', 'codes end: ' .. parse_codes(message:sub(-4))) end
+        if S{'message', 'all'}[balloon.debug] then LogManager:Log(5, 'Balloon', 'Final: ' .. encoding:UTF8_To_ShiftJIS(message)) end
 
 
-    if not ui:set_character(npc_name) then
-		ui:set_type(mode)
-	end
-	ui:set_message(message:trimex())
-	balloon.open(timed)
+        if not ui:set_character(npc_name) then
+            ui:set_type(mode)
+        end
+        ui:set_message(message:trimex())
+        balloon.open(timed)
+
+    end)
 
 	return result
 end
@@ -631,6 +645,85 @@ ashita.events.register('command', 'balloon_command_cb', function(e)
         end
         return
     end
+    
+    -- Handle: /balloon translate
+    if #args >= 2 and args[2]:any('tr', 'translate') then
+        -- toggle
+        if #args == 2 then
+            balloon.settings.trans.enable = not balloon.settings.trans.enable
+
+        -- settings
+        else
+            if args[3] == "use" and args[4] then
+                if args[4] == "none" then
+                    translator.config.use_google_translate = false
+                    balloon.settings.trans.config = nil
+                elseif args[4] == "classic" then
+                    balloon.settings.trans.config = "classic"
+                    translator.config.use_google_translate = true
+                else
+                    translator.config.use_google_translate = false
+
+                    if balloon.settings.trans.config_groups[args[4]] then
+                        balloon.settings.trans.config = args[4]
+                        print(chat.header(addon.name):append(chat.message('Config set changed to: ')):append(chat.success(balloon.settings.trans.config)))
+                    else
+                        print(chat.header(addon.name):append(chat.error('Specified config set not found: ')):appeend(args[4]))
+                    end
+                end
+            elseif args[3] == "list" then
+                for k, v in pairs(balloon.settings.trans.config_groups) do
+                    print(chat.header(addon.name):append(chat.message('Config set: ')):append(chat.success(k)))
+                    print(chat.header(addon.name):append(chat.message('  API Key: ')):append(chat.success(v.api_key:sub(1, 10)):append(chat.message('***'))))
+                    print(chat.header(addon.name):append(chat.message('  Base URL: ')):append(chat.success(v.base_url)))
+                    print(chat.header(addon.name):append(chat.message('  Endpoint: ')):append(chat.success(v.endpoint)))
+                    print(chat.header(addon.name):append(chat.message('  Req Para: ')))
+                    for ki, vi in pairs(v.req_para) do
+                        print(chat.header(addon.name)
+                            :append(chat.message('    '))
+                            :append(chat.message(ki))
+                            :append(chat.message('->'))
+                            :append(chat.success(vi)))
+                    end
+                end
+            elseif args[3] == "set" and #args >= 5 then
+                local target = balloon.settings.trans.config_groups[balloon.settings.trans.config]
+                if args[4] == "req_para" and #args == 6 then
+                    target.req_para[args[5]] = args[6]
+                elseif args[4] == "api_key" then
+                    target.api_key = args[5]
+                elseif args[4] == "base_url" then
+                    target.base_url = args[5]
+                elseif args[4] == "endpoint" then
+                    target.endpoint = args[5]
+                end
+            elseif args[3] == "add" and #args == 4 then
+                balloon.settings.trans.config_groups[args[4]] = {
+                    api_key = '',
+                    endpoint = '/v1/chat/completions',
+                    url = 'http://127.0.0.1',
+                    req_para = {
+                        model = args[4]
+                    }
+                }
+            elseif args[3] == "remove" and #args == 4 then
+                balloon.settings.trans.config_groups[args[4]] = nil
+            else
+                print(chat.header(addon.name):append(chat.error('Invalid Command.')))
+            end
+            settings.save()
+        end
+        translator.config.enable = balloon.settings.trans.enable
+        print(chat.header(addon.name):append('Translate: '):append(chat.success(translator.config.enable and 'on' or 'off')))
+        if translator.config.use_google_translate then
+            print(chat.header(addon.name):append('Translate: '):append(chat.success('Using Google Translator')))
+        else
+            if translator.config.enable and balloon.settings.trans.config ~= nil then
+                translator.update_config(balloon.settings.trans.config_groups[balloon.settings.trans.config])
+            end
+        end
+        return
+    end
 
     -- Handle numerical options
     -- Handle: /balloon scale
@@ -768,6 +861,30 @@ ashita.events.register('command', 'balloon_command_cb', function(e)
     balloon.print_help(true)
 end)
 
+-- TRANSLATOR: initialise
+local function translator_init()
+    if balloon.lang_code ~= 'ja' then
+        translator.config.src_lang = 'en-US'
+    end
+
+    if balloon.settings.trans.enable then
+        if balloon.settings.trans.config then
+            if balloon.settings.trans.config == "classic" then
+                translator.init()
+                translator.config.enable = true
+                translator.use_google_translate = true
+            else
+                translator.init(balloon.settings.trans.config_groups[balloon.settings.trans.config])
+            end
+        else
+            translator.init()
+            translator.config.enable = true
+        end
+    else
+        translator.init()
+    end
+end
+
 ashita.events.register('load', 'balloon_load', function()
     balloon.settings = settings.load(default_settings)
     balloon.last_frame_time = os.clock()
@@ -779,12 +896,19 @@ ashita.events.register('load', 'balloon_load', function()
         if (s ~= nil) then
             balloon.settings = s
             balloon.initialize(s)
+
+            translator_init()
         end
     end)
+
+    translator_init()
 end)
 
 ashita.events.register('unload', 'balloon_unload', function()
     ui:destroy()
+
+    -- TRANSLATOR: finish
+    translator.fini()
 end)
 
 ashita.events.register('packet_in', 'balloon_packet_in', function(e)
@@ -860,6 +984,9 @@ ashita.events.register('text_in', 'balloon_text_in', function(e)
 end)
 
 ashita.events.register('d3d_present', 'balloon_d3d_present', function()
+    -- 翻译：检查响应
+    translator.pump()
+
     -- Calculate delta time for animations
     local frame_time = os.clock()
     local delta_time = frame_time - balloon.last_frame_time
