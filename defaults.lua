@@ -42,6 +42,12 @@ defaults.trans = {
             req_para = {
                 model = 'deepseek-chat'
             }
+        },
+        youdao_ = {
+            use_special_api = 'youdao_'
+        },
+        google = {
+            use_special_api = 'google'
         }
     }
 }

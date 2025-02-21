@@ -1,6 +1,6 @@
 addon.name      = 'balloon'
 addon.author    = 'Originally by Hando, English support added by Yuki & Kenshi, themes added by Ghosty, ported to Ashita v4 by onimitch, translation featured by Hyururu.'
-addon.version   = '4.3.1-t'
+addon.version   = '4.3.1-t2'
 addon.desc      = 'Displays NPC chat logs in a UI Balloon, similar to FFXIV.'
 addon.link      = 'https://github.com/onimitch/ffxi-balloon-ashitav4'
 
@@ -656,13 +656,9 @@ ashita.events.register('command', 'balloon_command_cb', function(e)
         else
             if args[3] == "use" and args[4] then
                 if args[4] == "none" then
-                    translator.config.use_google_translate = false
+                    translator.config.use_special_api = nil
                     balloon.settings.trans.config = nil
-                elseif args[4] == "classic" then
-                    balloon.settings.trans.config = "classic"
-                    translator.config.use_google_translate = true
                 else
-                    translator.config.use_google_translate = false
 
                     if balloon.settings.trans.config_groups[args[4]] then
                         balloon.settings.trans.config = args[4]
@@ -674,16 +670,20 @@ ashita.events.register('command', 'balloon_command_cb', function(e)
             elseif args[3] == "list" then
                 for k, v in pairs(balloon.settings.trans.config_groups) do
                     print(chat.header(addon.name):append(chat.message('Config set: ')):append(chat.success(k)))
-                    print(chat.header(addon.name):append(chat.message('  API Key: ')):append(chat.success(v.api_key:sub(1, 10)):append(chat.message('***'))))
-                    print(chat.header(addon.name):append(chat.message('  Base URL: ')):append(chat.success(v.base_url)))
-                    print(chat.header(addon.name):append(chat.message('  Endpoint: ')):append(chat.success(v.endpoint)))
-                    print(chat.header(addon.name):append(chat.message('  Req Para: ')))
-                    for ki, vi in pairs(v.req_para) do
-                        print(chat.header(addon.name)
-                            :append(chat.message('    '))
-                            :append(chat.message(ki))
-                            :append(chat.message('->'))
-                            :append(chat.success(vi)))
+                    if v.use_special_api then
+                        print(chat.header(addon.name):append(chat.message('  Special API '):append(chat.success(v.use_special_api))))
+                    else
+                        print(chat.header(addon.name):append(chat.message('  API Key: ')):append(chat.success((v.api_key or ''):sub(1, 10)):append(chat.message('***'))))
+                        print(chat.header(addon.name):append(chat.message('  Base URL: ')):append(chat.success(v.base_url)))
+                        print(chat.header(addon.name):append(chat.message('  Endpoint: ')):append(chat.success(v.endpoint)))
+                        print(chat.header(addon.name):append(chat.message('  Req Para: ')))
+                        for ki, vi in pairs(v.req_para) do
+                            print(chat.header(addon.name)
+                                :append(chat.message('    '))
+                                :append(chat.message(ki))
+                                :append(chat.message('->'))
+                                :append(chat.success(vi)))
+                        end
                     end
                 end
             elseif args[3] == "set" and #args >= 5 then
@@ -715,12 +715,8 @@ ashita.events.register('command', 'balloon_command_cb', function(e)
         end
         translator.config.enable = balloon.settings.trans.enable
         print(chat.header(addon.name):append('Translate: '):append(chat.success(translator.config.enable and 'on' or 'off')))
-        if translator.config.use_google_translate then
-            print(chat.header(addon.name):append('Translate: '):append(chat.success('Using Google Translator')))
-        else
-            if translator.config.enable and balloon.settings.trans.config ~= nil then
-                translator.update_config(balloon.settings.trans.config_groups[balloon.settings.trans.config])
-            end
+        if translator.config.enable and balloon.settings.trans.config ~= nil then
+            translator.update_config(balloon.settings.trans.config_groups[balloon.settings.trans.config])
         end
         return
     end
@@ -869,13 +865,7 @@ local function translator_init()
 
     if balloon.settings.trans.enable then
         if balloon.settings.trans.config then
-            if balloon.settings.trans.config == "classic" then
-                translator.init()
-                translator.config.enable = true
-                translator.use_google_translate = true
-            else
-                translator.init(balloon.settings.trans.config_groups[balloon.settings.trans.config])
-            end
+            translator.init(balloon.settings.trans.config_groups[balloon.settings.trans.config])
         else
             translator.init()
             translator.config.enable = true

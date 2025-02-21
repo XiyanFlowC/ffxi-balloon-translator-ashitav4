@@ -13,7 +13,7 @@ local url = require('socket.url')
 m.config = {
     enable = false,
 
-    use_google_translate = false,
+    use_special_api = nil,
 
     base_url = 'http://127.0.0.1:8080',
     endpoint = '/v1/chat/completions',
@@ -43,6 +43,63 @@ function m.init(config)
     term.init()
 end
 
+local function get_cookies(headers)
+    local ret = {}
+    for name, value in pairs(headers) do
+        if name:lower() == "set-cookie" then
+            local name_value = value:match("^%s*([^;]*)") or ""
+            local n, v = name_value:match("^%s*(.-)%s*=%s*(.-)%s*$")
+            if n and v then
+                ret[n] = v
+            end
+        end
+    end
+    return ret
+end
+
+local function build_cookie(cookies)
+    local list = {}
+    for k, v in pairs(cookies) do
+        table.insert(list, k .. "=" .. v)
+    end
+    return #list > 0 and table.concat(list, "; ") or ''
+end
+
+local function youdao_init()
+    if m.youdao_state then return end
+
+    local request = {
+        method = "GET",
+        url = "https://m.youdao.com/translate",
+        headers = {
+            ["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            ["Accept-Language"] = "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,ja-JP;q=0.3,en;q=0.2",
+            ["Origin"] = "https://m.youdao.com",
+            ["Referer"] = "https://m.youdao.com/translate",
+            ["Upgrade-Insecure-Requests"] = "1",
+            ["Sec-Fetch-Dest"] = "document",
+            ["Sec-Fetch-Mode"] = "navigate",
+            ["Sec-Fetch-Site"] = "same-origin",
+            ["Sec-Fetch-User"] = "?1",
+            ["Priority"] = "u=0, i",
+            ["User-Agent"] = "Mozilla/5.0 (Linux; Android 11; SAMSUNG SM-G973U) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/14.2 Chrome/87.0.4280.141 Mobile Safari/537.36"
+        }
+    }
+
+    ahttp.req(request, function (res, err)
+        if res == nil then
+            callback(nil, 'Error: ' .. err)
+            LogManager:Log(2, 'Balloon/Translator', 'HTTP Error: ' .. err)
+            return
+        end
+
+        if res.status == 200 then
+            m.youdao_state = {}
+            m.youdao_state.cookies = get_cookies(res.headers)
+        end
+    end)
+end
+
 function m.update_config(config)
     for k, v in pairs(config) do
         m.config[k] = v or ''
@@ -50,6 +107,14 @@ function m.update_config(config)
     m.config.req_para = {}
     for k, v in pairs(config.req_para or {}) do
         m.config.req_para[k] = v
+    end
+    m.config.use_special_api = config.use_special_api
+    if config.use_special_api then
+        print ('Special API->' .. m.config.use_special_api)
+        if m.config.use_special_api == "youdao_" then
+            youdao_init()
+        end
+        return
     end
     print ('URL->' .. m.config.base_url .. m.config.endpoint)
     print ('API Key->' .. m.config.api_key:sub(1, 5) .. '***')
@@ -137,9 +202,62 @@ local function llm_trans(message, callback)
     end)
 end
 
+local function preproc(message, terms)
+    -- 按照术语长度降序排序（优先处理长字符串）
+    table.sort(terms, function(a, b) return #a.src > #b.src end)
+    
+    local mappings = {}
+    local counter = 1
+    
+    for _, term in ipairs(terms) do
+        -- 转义特殊字符以进行精确匹配
+        local escaped_term = term.src:gsub("[%(%)%.%%%+%-%*%?%[%]%^%$]", "%%%0")
+        -- 生成唯一占位符
+        local placeholder = "#" .. counter
+        
+        -- 执行替换并记录替换次数
+        local new_msg, count = message:gsub(escaped_term, placeholder)
+        
+        if count > 0 then
+            message = new_msg
+            mappings[placeholder] = term.dst
+            counter = counter + 1
+        end
+    end
+    
+    return message, mappings
+end
+
+local function postproc(message, mappings)
+    -- 提取所有占位符并排序（优先处理长字符串和大编号）
+    local placeholders = {}
+    for k in pairs(mappings) do
+        table.insert(placeholders, k)
+    end
+    
+    table.sort(placeholders, function(a, b)
+        -- 先按长度降序
+        if #a ~= #b then
+            return #a > #b
+        -- else
+        --     -- 长度相同则按数字值降序
+        --     local num_a = tonumber(a:match("%d+")) or 0
+        --     local num_b = tonumber(b:match("%d+")) or 0
+        --     return num_a > num_b
+        end
+    end)
+    
+    -- 执行反向替换
+    for _, placeholder in ipairs(placeholders) do
+        message = message:gsub(placeholder, mappings[placeholder])
+    end
+    
+    return message
+end
+
 local function google_trans (message, callback)
     message = message:gsub('\n', '')
-    print(encoding:UTF8_To_ShiftJIS(message))
+    message, mappings = preproc(message, term.pick_terms(message))
     
     ahttp.get('http://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=' ..
         m.config.src_lang .. '&tl=' .. m.config.dst_lang .. '&q=' ..
@@ -158,12 +276,81 @@ local function google_trans (message, callback)
                         translated_message = v[1] and translated_message .. v[1] or translated_message
                     end
                 end
+                translated_message = postproc(translated_message:gsub('＃', '#'), mappings)
                 callback(translated_message)
             else
                 callback(nil, "Error: " .. response.status_line)
-                LogManager:Log(2, 'Balloon/Translator', encoding:UTF8_To_ShiftJIS('HTTP request failed: ' .. response.status_line))
+                LogManager:Log(2, 'Balloon/Translator', 'HTTP request failed: ' .. response.status_line)
             end
         end)
+end
+
+local function youdao_trans (message, callback)
+
+    if not m.youdao_state then
+        youdao_init()
+        callback(message)
+        return
+    end
+
+    message = message:gsub('\n', '')
+    message, mappings = preproc(message, term.pick_terms(message))
+
+    local type_mapping = {
+        ['zh-CN'] = 'ZH_CN',
+        ['en-US'] = 'EN',
+        ['ja-JP'] = 'JA'
+    }
+
+    local type = type_mapping[m.config.src_lang] .. '2' .. type_mapping[m.config.dst_lang]
+
+    local body = 'inputtext=' .. url.escape(message) .. '&type=' .. type
+
+    local request = {
+        method = 'POST',
+        url = "https://m.youdao.com/translate",
+        headers = {
+            ["User-Agent"] = "Mozilla/5.0 (Linux; Android 11; SAMSUNG SM-G973U) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/14.2 Chrome/87.0.4280.141 Mobile Safari/537.36",
+            ["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            ["Accept-Language"] = "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,ja-JP;q=0.3,en;q=0.2",
+            ["Cookie"] = build_cookie(m.youdao_state.cookies),
+            ["Content-Type"] = "application/x-www-form-urlencoded",
+            ["Origin"] = "https://m.youdao.com",
+            ["Referer"] = "https://m.youdao.com/translate",
+            ["Upgrade-Insecure-Requests"] = "1",
+            ["Sec-Fetch-Dest"] = "document",
+            ["Sec-Fetch-Mode"] = "navigate",
+            ["Sec-Fetch-Site"] = "same-origin",
+            ["Sec-Fetch-User"] = "?1",
+            ["Priority"] = "u=0, i"
+        },
+        body = body
+    }
+    
+    ahttp.req(request, function (res, err)
+        if res == nil then
+            callback(nil, 'Error: ' .. err)
+            LogManager:Log(2, 'Balloon/Translator', 'HTTP Error: ' .. err)
+            return
+        end
+
+        if res.status == 200 then
+            local response_data = res.body
+            -- LogManager:Log(5, 'Balloon/Translator', res.body)
+            local pattern = [[<ul id="translateResult">%s*<li[^>]*>%s*(.-)%s*</li>%s*</ul>]]
+
+            local contents = {}
+            for content in res.body:gmatch(pattern) do
+                table.insert(contents, content)
+            end
+            
+            translated_message = postproc(table.concat(contents, '\n'), mappings)
+            callback(translated_message)
+        else
+            callback(nil, "Error: " .. response.status_line)
+            LogManager:Log(2, 'Balloon/Translator', encoding:UTF8_To_ShiftJIS('HTTP request failed: ' .. response.status_line))
+        end
+    end)
 end
 
 -- 翻译
@@ -179,8 +366,12 @@ function m.translate(message, callback)
         return
     end
 
-    if m.config.use_google_translate then
-        google_trans(message, callback)
+    if m.config.use_special_api then
+        if m.config.use_special_api == "google" then
+            google_trans(message, callback)
+        elseif m.config.use_special_api == "youdao_" then
+            youdao_trans(message, callback)
+        end
     else
         llm_trans(message, callback)
     end

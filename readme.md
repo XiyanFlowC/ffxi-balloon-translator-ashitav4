@@ -84,7 +84,7 @@
 
 `/balloon translate use none` - 不要使用配置集。利用Translate内置的设定进行请求。
 
-`/balloon translate use classic` - 使用谷歌翻译。
+`/balloon translate use google` - 使用谷歌翻译。
 
 `/balloon translate list` - 列出所有配置集及其配置。
 
@@ -149,8 +149,6 @@ If you think it is troublesome to set the configuration through the game text co
 `/balloon translate use <configuration name>` - Select a configuration set to use.
 
 `/balloon translate use none` - Do not use a configuration set. Use Translate's built-in settings for the request.
-
-`/balloon translate use classic` - Use Google Translate.
 
 `/balloon translate list` - List all configuration sets and their configurations.
 
