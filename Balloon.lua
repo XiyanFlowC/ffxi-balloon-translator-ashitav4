@@ -1,6 +1,6 @@
 addon.name      = 'balloon'
 addon.author    = 'Originally by Hando, English support added by Yuki & Kenshi, themes added by Ghosty, ported to Ashita v4 by onimitch, translation featured by Hyururu.'
-addon.version   = '4.3.1-t2'
+addon.version   = '4.3.1-t2.2'
 addon.desc      = 'Displays NPC chat logs in a UI Balloon, similar to FFXIV.'
 addon.link      = 'https://github.com/onimitch/ffxi-balloon-ashitav4'
 
@@ -651,6 +651,7 @@ ashita.events.register('command', 'balloon_command_cb', function(e)
         -- toggle
         if #args == 2 then
             balloon.settings.trans.enable = not balloon.settings.trans.enable
+            settings.save()
 
         -- settings
         else
