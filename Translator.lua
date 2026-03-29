@@ -258,6 +258,7 @@ end
 local function google_trans (message, callback)
     local original_message = message
     message = message:gsub('\n', '')
+    local mappings = {}
     message, mappings = preproc(message, term.pick_terms(message))
     
     ahttp.get('http://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=' ..
@@ -281,8 +282,8 @@ local function google_trans (message, callback)
                 term.insert_cache(original_message, translated_message)
                 callback(translated_message)
             else
-                callback(nil, "Error: " .. response.status_line)
-                LogManager:Log(2, 'Balloon/Translator', 'HTTP request failed: ' .. response.status_line)
+                callback(nil, "Error: " .. res.status_line)
+                LogManager:Log(2, 'Balloon/Translator', 'HTTP request failed: ' .. res.status_line)
             end
         end)
 end
@@ -297,6 +298,7 @@ local function youdao_trans (message, callback)
 
     local original_message = message
     message = message:gsub('\n', '')
+    local mappings = {}
     message, mappings = preproc(message, term.pick_terms(message))
 
     local type_mapping = {
@@ -351,8 +353,8 @@ local function youdao_trans (message, callback)
             term.insert_cache(original_message, translated_message)
             callback(translated_message)
         else
-            callback(nil, "Error: " .. response.status_line)
-            LogManager:Log(2, 'Balloon/Translator', encoding:UTF8_To_ShiftJIS('HTTP request failed: ' .. response.status_line))
+            callback(nil, "Error: " .. res.status_line)
+            LogManager:Log(2, 'Balloon/Translator', encoding:UTF8_To_ShiftJIS('HTTP request failed: ' .. res.status_line))
         end
     end)
 end
