@@ -88,7 +88,6 @@ local function youdao_init()
 
     ahttp.req(request, function (res, err)
         if res == nil then
-            callback(nil, 'Error: ' .. err)
             LogManager:Log(2, 'Balloon/Translator', 'HTTP Error: ' .. err)
             return
         end
@@ -292,8 +291,10 @@ local function youdao_trans (message, callback)
 
     if not m.youdao_state then
         youdao_init()
-        callback(message)
-        return
+        if not m.youdao_state then
+            callback(message)
+            return
+        end
     end
 
     local original_message = message
